@@ -1,17 +1,19 @@
-name: Rust
-
-on: [push]
+name: Build and tests
+on: ["push", "pull_request"]
 
 jobs:
   build_and_tests:
-
-    name: Build and tests
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v1
+      - name: Build
+        run: cargo build --verbose
+      - name: Tests
+        run: cargo test --verbose
+      - name: coverage
+        run: cargo install cargo-tarpaulin && cargo tarpaulin --ignore-tests -o Xml
+      - name: codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./cobertura.xml
