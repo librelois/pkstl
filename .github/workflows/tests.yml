@@ -1,17 +1,15 @@
-name: Build and tests
+name: Tests
 on: ["push", "pull_request"]
 
 jobs:
-  build_and_tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Build
-        run: cargo build --verbose
-      - name: Tests
-        run: cargo test --verbose
-      - name: coverage
-        run: cargo install cargo-tarpaulin && cargo tarpaulin --ignore-tests -o Xml
+      - name: install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: tests (with tarpaulin)
+        run: cargo tarpaulin --ignore-tests --features bin,cbor,json -o Xml
       - name: codecov
         uses: codecov/codecov-action@v1
         with:
