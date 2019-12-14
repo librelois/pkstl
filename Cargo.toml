@@ -1,9 +1,9 @@
 [package]
 name = "pkstl"
 version = "0.1.0"
-authors = ["elois <elois@duniter.org>"]
+authors = ["elois <c@elo.tf>"]
 description = "Public Key Secure Transport Layer."
-repository = "https://git.duniter.org/nodes/rust/duniter-rs"
+repository = "https://github.com/librelois/pkstl"
 readme = "README.md"
 keywords = ["security", "transport", "cryptography"]
 license = "AGPL-3.0"
