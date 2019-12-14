@@ -1,5 +1,8 @@
 # Public Key Secure Transport Layer
 
+[![codecov](https://codecov.io/gh/librelois/pkstl/branch/master/graph/badge.svg)](https://codecov.io/gh/librelois/pkstl)
+
+
 * [FAQ](#faq)
   * [What is PKSTL ?](#what-is-pkstl)
   * [Why ?](#why)
