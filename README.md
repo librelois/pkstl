@@ -1,6 +1,8 @@
 # Public Key Secure Transport Layer
 
+![crates.io](https://img.shields.io/crates/v/pkstl.svg)
 [![codecov](https://codecov.io/gh/librelois/pkstl/branch/master/graph/badge.svg)](https://codecov.io/gh/librelois/pkstl)
+[![Minimum rustc version](https://img.shields.io/badge/rustc-1.37.0+-yellow.svg)](https://github.com/rust-lang/rust/blob/master/RELEASES.md)
 
 
 * [FAQ](#faq)
