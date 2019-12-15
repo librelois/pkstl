@@ -7,9 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: install tarpaulin
-        run: cargo install cargo-tarpaulin
+        #run: cargo install cargo-tarpaulin
+        run: wget https://github.com/xd009642/tarpaulin/releases/download/0.10.0/cargo-tarpaulin-0.10.0-travis.tar.gz && tar xzf cargo-tarpaulin-0.10.0-travis.tar.gz && chmod +x cargo-tarpaulin
       - name: tests (with tarpaulin)
-        run: cargo tarpaulin --ignore-tests --features bin,cbor,json -o Xml
+        run: ./cargo-tarpaulin tarpaulin --ignore-tests --features bin,cbor,json -o Xml
       - name: codecov
         uses: codecov/codecov-action@v1
         with:
