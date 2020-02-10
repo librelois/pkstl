@@ -26,6 +26,7 @@ use crate::reader::{self, DecryptedIncomingDatas};
 use crate::signature::{self, SIG_ALGO_ED25519_ARRAY};
 use crate::status::SecureLayerStatus;
 use crate::{Action, ActionSideEffects, Error, MsgType, Result};
+use std::collections::BTreeSet;
 use std::io::{BufReader, BufWriter, Write};
 
 /// Minimal secure layer
@@ -37,6 +38,12 @@ pub struct MinimalSecureLayer {
     pub(crate) encrypt_algo_with_secret: Option<EncryptAlgoWithSecretKey>,
     ephemeral_kp: Option<EphemeralKeyPair>,
     pub(crate) ephemeral_pubkey: EphemeralPublicKey,
+    /// Minimal expected nonce in the next received message
+    next_nonce_expected: u64,
+    /// Nonce for the next message to be sent
+    next_nonce_sent: u64,
+    /// List of orphan nonces (greater than next_nonce_expected)
+    orphan_nonce_list: BTreeSet<u64>,
     peer_epk: Option<Vec<u8>>,
     peer_sig_pubkey: Option<Vec<u8>>,
     pub(crate) status: SecureLayerStatus,
@@ -55,8 +62,11 @@ impl MinimalSecureLayer {
                 encrypt_algo_with_secret: self.encrypt_algo_with_secret.clone(),
                 ephemeral_kp: None,
                 ephemeral_pubkey: self.ephemeral_pubkey.clone(),
+                orphan_nonce_list: self.orphan_nonce_list.clone(),
                 peer_epk: None,
                 peer_sig_pubkey: None,
+                next_nonce_expected: self.next_nonce_expected,
+                next_nonce_sent: self.next_nonce_sent,
                 status: SecureLayerStatus::NegotiationSuccessful,
                 tmp_stack_user_msgs: self.tmp_stack_user_msgs.clone(),
             })
@@ -88,8 +98,11 @@ impl MinimalSecureLayer {
             encrypt_algo_with_secret: None,
             ephemeral_pubkey,
             ephemeral_kp: Some(ephemeral_kp),
+            orphan_nonce_list: BTreeSet::new(),
             peer_epk: None,
             peer_sig_pubkey: expected_remote_sig_public_key,
+            next_nonce_expected: 0,
+            next_nonce_sent: 0,
             status: SecureLayerStatus::init(),
             tmp_stack_user_msgs: Vec::new(),
         };
@@ -226,7 +239,12 @@ impl MinimalSecureLayer {
                 // Update status
                 self.status.apply_action(Action::Receive(MsgType::Ack))?;
             }
-            MsgTypeHeaders::UserMsg => {
+            MsgTypeHeaders::UserMsg { nonce } => {
+                // Verify nonce
+                if nonce < self.next_nonce_expected || self.orphan_nonce_list.contains(&nonce) {
+                    return Err(IncomingMsgErr::InvalidNonce.into());
+                }
+
                 // Verify status
                 if let Some(ActionSideEffects::PushUserMsgIntoTmpStack) = self
                     .status
@@ -241,6 +259,16 @@ impl MinimalSecureLayer {
                 let hash = &datas[user_msg_end..];
                 if hash != sha256(datas_hashed).as_ref() {
                     return Err(IncomingMsgErr::InvalidHashOrSig.into());
+                }
+
+                // Update orphan_nonce_list
+                if nonce == self.next_nonce_expected {
+                    self.next_nonce_expected += 1;
+                    while self.orphan_nonce_list.remove(&self.next_nonce_expected) {
+                        self.next_nonce_expected += 1;
+                    }
+                } else {
+                    self.orphan_nonce_list.insert(nonce);
                 }
             }
         }
@@ -345,6 +373,8 @@ impl MinimalSecureLayer {
         match self.encapsuled_and_encrypt_and_write_message(datas, writer) {
             Ok(()) => {
                 self.status = SecureLayerStatus::NegotiationSuccessful;
+
+                self.next_nonce_sent += 1;
                 Ok(())
             }
             Err(e) => {
@@ -360,6 +390,7 @@ impl MinimalSecureLayer {
         writer: &mut BufWriter<W>,
     ) -> Result<()> {
         let encapsuled_msg = self.encapsulate_message(&MessageRef::Message {
+            nonce: self.next_nonce_sent,
             custom_datas: Some(datas),
         })?;
         self.encrypt_and_write(&encapsuled_msg, writer)
@@ -629,5 +660,106 @@ mod tests {
             println!("unexpected result={:?}", result);
             panic!();
         }
+    }
+
+    #[test]
+    fn test_recv_twice_same_user_msg() -> Result<()> {
+        // Create sig keypair
+        let sig_kp = Ed25519KeyPair::from_seed_unchecked(Seed32::random().as_ref())
+            .map_err(|_| Error::FailtoGenSigKeyPair)?;
+
+        // Create EKP
+        let ephemeral_kp = EphemeralKeyPair::generate()?;
+
+        // Create connect msg bytes
+        let incoming_datas =
+            create_connect_msg_bytes(ephemeral_kp.public_key().as_ref().to_vec(), &sig_kp)?;
+
+        // Create secure layer
+        let mut msl1 = MinimalSecureLayer::create(SecureLayerConfig::default(), None)?;
+
+        // Read connect message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create connect message
+        let _ = msl1.create_connect_message(&ephemeral_kp.public_key().as_ref().to_vec(), None)?;
+
+        // Create ack message
+        let _ = msl1.create_ack_message(None)?;
+
+        // Create ack msg bytes
+        let incoming_datas =
+            create_ack_msg_bytes(msl1.ephemeral_pubkey.as_ref().to_vec(), &sig_kp)?;
+
+        // Read ack message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create and read different user messages
+        let mut incoming_datas = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas)?;
+        let _ = msl1.read(incoming_datas.buffer())?;
+
+        incoming_datas = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas)?;
+        let _ = msl1.read(incoming_datas.buffer())?;
+
+        // Reread same user message
+        let result = msl1.read(incoming_datas.buffer());
+        if let Err(Error::RecvInvalidMsg(IncomingMsgErr::InvalidNonce)) = result {
+            Ok(())
+        } else {
+            println!("unexpected result={:?}", result);
+            panic!();
+        }
+    }
+
+    #[test]
+    fn test_recv_unordered_user_msgs() -> Result<()> {
+        // Create sig keypair
+        let sig_kp = Ed25519KeyPair::from_seed_unchecked(Seed32::random().as_ref())
+            .map_err(|_| Error::FailtoGenSigKeyPair)?;
+
+        // Create EKP
+        let ephemeral_kp = EphemeralKeyPair::generate()?;
+
+        // Create connect msg bytes
+        let incoming_datas =
+            create_connect_msg_bytes(ephemeral_kp.public_key().as_ref().to_vec(), &sig_kp)?;
+
+        // Create secure layer
+        let mut msl1 = MinimalSecureLayer::create(SecureLayerConfig::default(), None)?;
+
+        // Read connect message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create connect message
+        let _ = msl1.create_connect_message(&ephemeral_kp.public_key().as_ref().to_vec(), None)?;
+
+        // Create ack message
+        let _ = msl1.create_ack_message(None)?;
+
+        // Create ack msg bytes
+        let incoming_datas =
+            create_ack_msg_bytes(msl1.ephemeral_pubkey.as_ref().to_vec(), &sig_kp)?;
+
+        // Read ack message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create and read unordered user messages
+        let mut incoming_datas0 = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas0)?;
+        let mut incoming_datas1 = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas1)?;
+        let mut incoming_datas2 = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas2)?;
+        let mut incoming_datas3 = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_datas3)?;
+
+        let _ = msl1.read(incoming_datas0.buffer())?;
+        let _ = msl1.read(incoming_datas2.buffer())?;
+        let _ = msl1.read(incoming_datas3.buffer())?;
+        let _ = msl1.read(incoming_datas1.buffer())?;
+
+        Ok(())
     }
 }

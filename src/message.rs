@@ -22,6 +22,7 @@ use std::io::{BufWriter, Write};
 
 const CONNECT_MSG_TYPE_HEADERS_SIZE: usize = 70;
 const ACK_MSG_TYPE_HEADERS_SIZE: usize = 34;
+const USER_MSG_TYPE_HEADERS_SIZE: usize = 8;
 
 const HEADERS_AND_FOOTERS_MAX_SIZE: usize = 136;
 
@@ -70,6 +71,8 @@ pub enum MessageRef<'a> {
     Message {
         /// Custom datas
         custom_datas: Option<&'a [u8]>,
+        /// Nonce
+        nonce: u64,
     },
 }
 
@@ -95,12 +98,14 @@ pub(crate) enum MsgTypeHeaders {
     Ack {
         challenge: [u8; CHALLENGE_SIZE],
     },
-    UserMsg,
+    UserMsg {
+        nonce: u64,
+    },
 }
 
 impl MsgTypeHeaders {
     pub(crate) fn must_be_encrypted(&self) -> bool {
-        if let MsgTypeHeaders::UserMsg = self {
+        if let MsgTypeHeaders::UserMsg { .. } = self {
             true
         } else {
             false
@@ -124,7 +129,7 @@ impl Message {
 
         // Build message according to it's type
         match msg_type_headers {
-            MsgTypeHeaders::UserMsg => Ok(Message::Message { custom_datas }),
+            MsgTypeHeaders::UserMsg { .. } => Ok(Message::Message { custom_datas }),
             MsgTypeHeaders::Connect {
                 sig_algo,
                 sig_pubkey,
@@ -190,10 +195,24 @@ impl<'a> MessageRef<'a> {
                     type_msg_headers,
                 })
             }
-            Self::Message { custom_datas } => Ok(InnerPreparedMsg {
-                bin_user_msg: *custom_datas,
-                type_msg_headers: USER_MSG_TYPE.to_vec(),
-            }),
+            Self::Message {
+                custom_datas,
+                nonce,
+            } => {
+                // type message headers
+                let mut type_msg_headers = Vec::with_capacity(USER_MSG_TYPE_HEADERS_SIZE);
+                type_msg_headers
+                    .write(USER_MSG_TYPE)
+                    .map_err(Error::WriteError)?;
+                type_msg_headers
+                    .write(&nonce.to_be_bytes())
+                    .map_err(Error::WriteError)?;
+
+                Ok(InnerPreparedMsg {
+                    bin_user_msg: *custom_datas,
+                    type_msg_headers,
+                })
+            }
         }
     }
     /// Convert message to bytes
@@ -397,6 +416,7 @@ mod tests {
 
         // Test user message
         let empty_user_message = MessageRef::Message {
+            nonce: 123456,
             custom_datas: Some(&[5, 4, 4, 5]),
         };
         assert_eq!(
@@ -404,8 +424,9 @@ mod tests {
                 datas: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
-                    0, 0, 0, 0, 0, 0, 0, 6, // ENCAPSULED_MSG_LEN
+                    0, 0, 0, 0, 0, 0, 0, 14, // ENCAPSULED_MSG_LEN
                     0, 0, // USER_MSG_TYPE
+                    0, 0, 0, 0, 0, 1, 226, 64, // NONCE
                     5, 4, 4, 5 // custom datas
                 ],
             },
@@ -413,14 +434,18 @@ mod tests {
         );
 
         // Test empty user message
-        let empty_user_message = MessageRef::Message { custom_datas: None };
+        let empty_user_message = MessageRef::Message {
+            nonce: 0,
+            custom_datas: None,
+        };
         assert_eq!(
             EncapsuledMessage {
                 datas: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
-                    0, 0, 0, 0, 0, 0, 0, 2, // ENCAPSULED_MSG_LEN
+                    0, 0, 0, 0, 0, 0, 0, 10, // ENCAPSULED_MSG_LEN
                     0, 0, // USER_MSG_TYPE
+                    0, 0, 0, 0, 0, 0, 0, 0, // NONCE
                 ],
             },
             empty_user_message.to_bytes(fake_epk, None)?
@@ -441,7 +466,7 @@ mod tests {
             Message::Message {
                 custom_datas: Some(vec![3, 3, 3, 3]),
             },
-            Message::from_bytes(msg_bytes.clone(), MsgTypeHeaders::UserMsg)?
+            Message::from_bytes(msg_bytes.clone(), MsgTypeHeaders::UserMsg { nonce: 123456 })?
         );
 
         // Ack message
@@ -479,14 +504,17 @@ mod tests {
             Message::Message {
                 custom_datas: Some(vec![3, 3])
             },
-            Message::from_bytes(msg_bytes.drain(..2).collect(), MsgTypeHeaders::UserMsg)?,
+            Message::from_bytes(
+                msg_bytes.drain(..2).collect(),
+                MsgTypeHeaders::UserMsg { nonce: 123456 }
+            )?,
         );
 
         // Empty message
         let empty_msg_bytes = vec![];
         assert_eq!(
             Message::Message { custom_datas: None },
-            Message::from_bytes(empty_msg_bytes, MsgTypeHeaders::UserMsg)?
+            Message::from_bytes(empty_msg_bytes, MsgTypeHeaders::UserMsg { nonce: 123456 })?
         );
 
         Ok(())
