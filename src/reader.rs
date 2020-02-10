@@ -26,6 +26,7 @@ use std::io::{BufWriter, Write};
 const MAGIC_VALUE_END: usize = 4;
 const VERSION_END: usize = 8;
 pub(crate) const ENCAPSULED_MSG_BEGIN: usize = 16;
+const NONCE_SIZE: usize = 8;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct DecryptedIncomingDatas {
@@ -96,7 +97,16 @@ pub(crate) fn read(
 fn read_type_headers(type_headers: &[u8]) -> Result<(MsgTypeHeaders, usize)> {
     // Match message type
     match &type_headers[..MSG_TYPE_LEN] {
-        USER_MSG_TYPE => Ok((MsgTypeHeaders::UserMsg, MSG_TYPE_LEN)),
+        USER_MSG_TYPE => {
+            let mut nonce = [0u8; NONCE_SIZE];
+            nonce.copy_from_slice(&type_headers[MSG_TYPE_LEN..MSG_TYPE_LEN + NONCE_SIZE]);
+            Ok((
+                MsgTypeHeaders::UserMsg {
+                    nonce: u64::from_be_bytes(nonce),
+                },
+                MSG_TYPE_LEN + NONCE_SIZE,
+            ))
+        }
         CONNECT_MSG_TYPE => {
             // Read PEER_EPHEMERAL_PUBKEY
             let mut peer_ephemeral_pk = [0u8; EPK_SIZE];
@@ -175,6 +185,7 @@ mod tests {
         empty_user_msg.append(&mut CURRENT_VERSION.to_vec());
         empty_user_msg.append(&mut vec![0, 0, 0, 0, 0, 0, 0, 2]); // ENCAPSULED_MSG_SIZE
         empty_user_msg.append(&mut USER_MSG_TYPE.to_vec());
+        empty_user_msg.append(&mut vec![0, 0, 0, 0, 0, 0, 0, 0]); // NONCE
 
         let result = read(None, &empty_user_msg, true);
         if let Err(Error::RecvInvalidMsg(e)) = result {
@@ -281,9 +292,12 @@ mod tests {
 
     #[test]
     fn test_read_user_type_headers() -> Result<()> {
-        let type_headers = vec![0, 0]; // USER_MSG_TYPE
+        let type_headers = vec![
+            0, 0, // USER_MSG_TYPE
+            0, 0, 0, 0, 0, 1, 226, 64, // NONCE
+        ];
 
-        let expected = (MsgTypeHeaders::UserMsg, 2);
+        let expected = (MsgTypeHeaders::UserMsg { nonce: 123456 }, 10);
 
         assert_eq!(expected, read_type_headers(&type_headers[..])?);
 

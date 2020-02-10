@@ -173,6 +173,9 @@ CUSTOM_DATAS := optional free user application datas (in clear).
 
 | Field              | Size | Type    | Value                |
 |:------------------:|:----:|:-------:|:--------------------:|
+| NONCE              |    8 |     u64 |                      |
 | CUSTOM_DATAS       |   *X |  [u8;X] |                      |
+
+NONCE := unique message number for avoiding replay attack.
 
 CUSTOM_DATAS := user application datas (encrypted).

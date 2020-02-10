@@ -86,6 +86,8 @@ pub enum IncomingMsgErr {
     InvalidHashOrSig,
     /// Invalid magic value
     InvalidMagicValue,
+    /// Invalid nonce
+    InvalidNonce,
     /// Message too short
     MessageTooShort,
     /// Unexpected a cck message
