@@ -47,3 +47,6 @@ pub(crate) const ACK_MSG_TYPE: &[u8] = &[0, 2];
 
 /// Sig pubkey begin
 pub(crate) const SIG_PUBKEY_BEGIN: usize = MSG_TYPE_LEN + EPK_SIZE + SIG_ALGO_LEN;
+
+/// Maximum amount of orphan nonces
+pub(crate) const MAX_ORPHAN_NONCES: usize = 10_000;

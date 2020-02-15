@@ -55,6 +55,8 @@ pub enum Error {
     TryToWriteMsgWhenNegoNotSuccessful,
     /// Receive invalid message
     RecvInvalidMsg(IncomingMsgErr),
+    /// Received too many unordered messages; possibly due to an attack
+    TooManyUnorderedMsgs,
     /// Unexpected remote signature public key
     UnexpectedRemoteSigPubKey,
     /// Error on writer
