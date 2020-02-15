@@ -268,6 +268,11 @@ impl MinimalSecureLayer {
                         self.next_nonce_expected += 1;
                     }
                 } else {
+                    if self.orphan_nonce_list.len() >= MAX_ORPHAN_NONCES {
+                        self.status = SecureLayerStatus::Fail;
+                        return Err(Error::TooManyUnorderedMsgs);
+                    }
+
                     self.orphan_nonce_list.insert(nonce);
                 }
             }
@@ -761,5 +766,61 @@ mod tests {
         let _ = msl1.read(incoming_datas1.buffer())?;
 
         Ok(())
+    }
+
+    #[test]
+    #[ignore]
+    fn test_recv_too_many_unordered_messages() -> Result<()> {
+        // Create sig keypair
+        let sig_kp = Ed25519KeyPair::from_seed_unchecked(Seed32::random().as_ref())
+            .map_err(|_| Error::FailtoGenSigKeyPair)?;
+
+        // Create EKP
+        let ephemeral_kp = EphemeralKeyPair::generate()?;
+
+        // Create connect msg bytes
+        let incoming_datas =
+            create_connect_msg_bytes(ephemeral_kp.public_key().as_ref().to_vec(), &sig_kp)?;
+
+        // Create secure layer
+        let mut msl1 = MinimalSecureLayer::create(SecureLayerConfig::default(), None)?;
+
+        // Read connect message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create connect message
+        let _ = msl1.create_connect_message(&ephemeral_kp.public_key().as_ref().to_vec(), None)?;
+
+        // Create ack message
+        let _ = msl1.create_ack_message(None)?;
+
+        // Create ack msg bytes
+        let incoming_datas =
+            create_ack_msg_bytes(msl1.ephemeral_pubkey.as_ref().to_vec(), &sig_kp)?;
+
+        // Read ack message
+        let _ = msl1.read(&incoming_datas[..])?;
+
+        // Create a first msg without reading it
+        let mut incoming_datas = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[], &mut incoming_datas)?;
+
+        // Read MAX_ORPHAN_NONCES messages
+        let _i: usize;
+        for _i in 0..MAX_ORPHAN_NONCES {
+            incoming_datas = BufWriter::new(Vec::new());
+            let _ = msl1.write_message(&[], &mut incoming_datas)?;
+            let _ = msl1.read(incoming_datas.buffer())?;
+        }
+
+        incoming_datas = BufWriter::new(Vec::new());
+        let _ = msl1.write_message(&[], &mut incoming_datas)?;
+        let result = msl1.read(incoming_datas.buffer());
+        if let Err(Error::TooManyUnorderedMsgs) = result {
+            Ok(())
+        } else {
+            println!("unexpected result={:?}", result);
+            panic!();
+        }
     }
 }
