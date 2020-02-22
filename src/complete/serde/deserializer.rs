@@ -25,38 +25,38 @@ use std::fmt::Debug;
 
 pub(crate) fn read<M>(
     sl: &mut SecureLayer,
-    incoming_datas: &[u8],
+    incoming_data: &[u8],
 ) -> Result<Vec<IncomingMessage<M>>>
 where
     M: Debug + DeserializeOwned,
 {
-    let bin_msgs = sl.read_bin(incoming_datas)?;
+    let bin_msgs = sl.read_bin(incoming_data)?;
 
     let mut msgs = Vec::new();
 
     for bin_msg in bin_msgs {
         match bin_msg {
             IncomingBinaryMessage::Connect {
-                custom_datas,
+                custom_data,
                 peer_sig_public_key,
             } => msgs.push(IncomingMessage::Connect {
-                custom_datas: if let Some(custom_datas) = custom_datas {
-                    Some(deserialize(&custom_datas)?)
+                custom_data: if let Some(custom_data) = custom_data {
+                    Some(deserialize(&custom_data)?)
                 } else {
                     None
                 },
                 peer_sig_public_key,
             }),
-            IncomingBinaryMessage::Ack { custom_datas } => msgs.push(IncomingMessage::Ack {
-                custom_datas: if let Some(custom_datas) = custom_datas {
-                    Some(deserialize(&custom_datas)?)
+            IncomingBinaryMessage::Ack { custom_data } => msgs.push(IncomingMessage::Ack {
+                custom_data: if let Some(custom_data) = custom_data {
+                    Some(deserialize(&custom_data)?)
                 } else {
                     None
                 },
             }),
-            IncomingBinaryMessage::Message { datas } => msgs.push(IncomingMessage::Message {
-                datas: if let Some(datas) = datas {
-                    Some(deserialize(&datas)?)
+            IncomingBinaryMessage::Message { data } => msgs.push(IncomingMessage::Message {
+                data: if let Some(data) = data {
+                    Some(deserialize(&data)?)
                 } else {
                     None
                 },

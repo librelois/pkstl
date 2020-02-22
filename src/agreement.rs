@@ -146,7 +146,7 @@ mod tests {
         let ephemeral_pk_server = ephemeral_kp_server.public_key().clone();
         let ephemeral_pk_client = ephemeral_kp_client.public_key().clone();
 
-        // Sharer secret of 48 bytes
+        // Shared secret of 48 bytes
         let mut shared_secret_server_48b = ephemeral_kp_server.compute_shared_secret(
             ephemeral_kp_client.public_key().as_ref(),
             SharedSecretLen::B48,
@@ -182,7 +182,7 @@ mod tests {
         let ephemeral_pk_server = ephemeral_kp_server.public_key().clone();
         let ephemeral_pk_client = ephemeral_kp_client.public_key().clone();
 
-        // Sharer secret of 64 bytes
+        // Shared secret of 64 bytes
         let mut shared_secret_server_64b = ephemeral_kp_server.compute_shared_secret(
             ephemeral_kp_client.public_key().as_ref(),
             SharedSecretLen::B64,

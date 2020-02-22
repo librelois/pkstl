@@ -52,28 +52,28 @@ impl SecretKey {
     }
 }
 
-/// Decrypt datas
+/// Decrypt data
 pub fn decrypt<W: Write>(
-    encrypted_datas: &[u8],
+    encrypted_data: &[u8],
     secret_key: &SecretKey,
     writer: &mut BufWriter<W>,
 ) -> Result<()> {
-    let payload_len = encrypted_datas.len() - CHACHA20_TAG_SIZE;
+    let payload_len = encrypted_data.len() - CHACHA20_TAG_SIZE;
 
     chacha20_poly1305_aead::decrypt(
         &secret_key.key,
         &secret_key.nonce,
         &secret_key.aad,
-        &encrypted_datas[0..payload_len],
-        &encrypted_datas[payload_len..],
+        &encrypted_data[0..payload_len],
+        &encrypted_data[payload_len..],
         writer,
     )
-    .map_err(Error::FailToDecryptDatas)?;
+    .map_err(Error::FailToDecryptData)?;
 
     Ok(())
 }
 
-/// Encrypt datas
+/// Encrypt data
 pub fn encrypt<R: Read, W: Write>(
     reader: &mut R,
     secret_key: &SecretKey,
@@ -86,11 +86,11 @@ pub fn encrypt<R: Read, W: Write>(
         reader,
         writer,
     )
-    .map_err(Error::FailToEncryptDatas)?;
+    .map_err(Error::FailToEncryptData)?;
 
     writer
         .write(&tag.to_vec())
-        .map_err(Error::FailToEncryptDatas)?;
+        .map_err(Error::FailToEncryptData)?;
 
     Ok(())
 }
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_encryption() -> Result<()> {
-        let datas = b"My secret datas".to_vec();
+        let data = b"My secret data".to_vec();
 
         let secret_key = SecretKey::new(&Seed48::new([
             0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
@@ -111,23 +111,23 @@ mod tests {
             46, 47,
         ]));
 
-        let mut encrypted_datas = BufWriter::new(Vec::with_capacity(datas.len()));
+        let mut encrypted_data = BufWriter::new(Vec::with_capacity(data.len()));
 
-        encrypt(&mut &datas[..], &secret_key, &mut encrypted_datas)?;
-        let encrypted_datas = encrypted_datas
+        encrypt(&mut &data[..], &secret_key, &mut encrypted_data)?;
+        let encrypted_data = encrypted_data
             .into_inner()
             .expect("fail to flush encrypt buffer");
 
-        let mut decrypted_datas = BufWriter::new(Vec::with_capacity(datas.len()));
-        decrypt(&encrypted_datas, &secret_key, &mut decrypted_datas)?;
-        let decrypted_datas = decrypted_datas
+        let mut decrypted_data = BufWriter::new(Vec::with_capacity(data.len()));
+        decrypt(&encrypted_data, &secret_key, &mut decrypted_data)?;
+        let decrypted_data = decrypted_data
             .into_inner()
             .expect("fail to flush decrypt buffer");
 
-        println!("encrypted_datas={:?}", encrypted_datas);
-        println!("decrypted_datas={:?}", decrypted_datas);
+        println!("encrypted_data={:?}", encrypted_data);
+        println!("decrypted_data={:?}", decrypted_data);
 
-        assert_eq!(datas, decrypted_datas);
+        assert_eq!(data, decrypted_data);
 
         Ok(())
     }

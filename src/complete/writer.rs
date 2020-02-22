@@ -24,7 +24,7 @@ use std::io::{BufWriter, Write};
 #[inline]
 pub fn write_connect_msg<W>(
     sl: &mut SecureLayer,
-    custom_datas: Option<Vec<u8>>,
+    custom_data: Option<Vec<u8>>,
     writer: &mut BufWriter<W>,
 ) -> Result<()>
 where
@@ -34,7 +34,7 @@ where
         // Create connect message
         let bin_connect_msg = sl.minimal_secure_layer.create_connect_message(
             sig_key_pair.public_key().as_ref(),
-            match custom_datas {
+            match custom_data {
                 Some(ref d) => Some(&d[..]),
                 None => None,
             },
@@ -55,7 +55,7 @@ where
 #[inline]
 pub fn write_ack_msg<W>(
     sl: &mut SecureLayer,
-    custom_datas: Option<Vec<u8>>,
+    custom_data: Option<Vec<u8>>,
     writer: &mut BufWriter<W>,
 ) -> Result<()>
 where
@@ -65,7 +65,7 @@ where
         // Create ack message
         let bin_connect_msg = sl
             .minimal_secure_layer
-            .create_ack_message(match custom_datas {
+            .create_ack_message(match custom_data {
                 Some(ref d) => Some(&d[..]),
                 None => None,
             })?;

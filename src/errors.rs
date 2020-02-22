@@ -26,10 +26,10 @@ pub enum Error {
     ConnectMsgAlreadyWritten,
     /// Fail to compute agreement
     FailToComputeAgreement,
-    /// Fail to decrypt datas
-    FailToDecryptDatas(chacha20_poly1305_aead::DecryptError),
-    /// Fail to encrypt datas
-    FailToEncryptDatas(std::io::Error),
+    /// Fail to decrypt data
+    FailToDecryptData(chacha20_poly1305_aead::DecryptError),
+    /// Fail to encrypt data
+    FailToEncryptData(std::io::Error),
     /// Fail to generate ephemeral key pair
     FailToGenEphemerKeyPair,
     /// Fail to generate ephemeral public key
@@ -49,9 +49,9 @@ pub enum Error {
     SerdeError(crate::complete::serde::SerdeError),
     /// Serialization error
     SerializationError(std::io::Error),
-    /// Tru to generate connect message too late
+    /// Try to generate connect message too late
     TryToGenConnectMsgTooLate,
-    /// Trying to write a message when the negotiation is not successful
+    /// Try to write a message when the negotiation is not successful
     TryToWriteMsgWhenNegoNotSuccessful,
     /// Receive invalid message
     RecvInvalidMsg(IncomingMsgErr),
@@ -92,14 +92,14 @@ pub enum IncomingMsgErr {
     InvalidNonce,
     /// Message too short
     MessageTooShort,
-    /// Unexpected a cck message
+    /// Unexpected ack message
     UnexpectedAckMsg,
     /// Unexpected connect message
     UnexpectedConnectMsg,
     /// Unexpected user message
     UnexpectedMessage,
     /// Unexpected encryption state
-    /// It may be that the message is in clear when we expect it to be encrypted.
+    /// It may be that the message is clear when we expect it to be encrypted.
     UnexpectedEncryptionState,
     /// Unknown message format
     UnknownMessageFormat,

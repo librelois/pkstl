@@ -29,64 +29,64 @@ pub(crate) const ENCAPSULED_MSG_BEGIN: usize = 16;
 const NONCE_SIZE: usize = 8;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct DecryptedIncomingDatas {
-    pub(crate) datas: Vec<u8>,
+pub(crate) struct DecryptedIncomingData {
+    pub(crate) data: Vec<u8>,
     pub(crate) user_msg_begin: usize,
     pub(crate) user_msg_end: usize,
     pub(crate) msg_type_headers: MsgTypeHeaders,
 }
 
-/// Read incoming datas
+/// Read incoming data
 pub(crate) fn read(
     encrypt_algo_with_secret_opt: Option<&EncryptAlgoWithSecretKey>,
-    incoming_datas: &[u8],
+    incoming_data: &[u8],
     check_encrypt_state: bool,
-) -> std::result::Result<DecryptedIncomingDatas, Error> {
-    // Decrypt datas
-    let datas_encrypted;
-    let mut buffer = BufWriter::new(Vec::with_capacity(incoming_datas.len()));
-    if incoming_datas[..MAGIC_VALUE_END] == MAGIC_VALUE {
-        // Datas are not encrypted
-        datas_encrypted = false;
-        buffer.write(incoming_datas).map_err(Error::WriteError)?;
+) -> std::result::Result<DecryptedIncomingData, Error> {
+    // Decrypt data
+    let data_encrypted;
+    let mut buffer = BufWriter::new(Vec::with_capacity(incoming_data.len()));
+    if incoming_data[..MAGIC_VALUE_END] == MAGIC_VALUE {
+        // Data are not encrypted
+        data_encrypted = false;
+        buffer.write(incoming_data).map_err(Error::WriteError)?;
     } else {
-        // Datas are encrypted
-        datas_encrypted = true;
+        // Data are encrypted
+        data_encrypted = true;
         if let Some(encrypt_algo_with_secret) = encrypt_algo_with_secret_opt {
-            decrypt(incoming_datas, encrypt_algo_with_secret, &mut buffer)?;
+            decrypt(incoming_data, encrypt_algo_with_secret, &mut buffer)?;
         } else {
             return Err(Error::RecvInvalidMsg(IncomingMsgErr::UnexpectedMessage));
         }
     }
-    let decrypted_datas = buffer.into_inner().map_err(|_| Error::BufferFlushError)?;
+    let decrypted_data = buffer.into_inner().map_err(|_| Error::BufferFlushError)?;
 
     // Check magic value
-    if decrypted_datas[..MAGIC_VALUE_END] != MAGIC_VALUE {
+    if decrypted_data[..MAGIC_VALUE_END] != MAGIC_VALUE {
         return Err(IncomingMsgErr::InvalidMagicValue.into());
     }
 
     // Check version
-    if decrypted_datas[MAGIC_VALUE_END..VERSION_END] != CURRENT_VERSION {
+    if decrypted_data[MAGIC_VALUE_END..VERSION_END] != CURRENT_VERSION {
         return Err(IncomingMsgErr::UnsupportedVersion.into());
     }
 
     // Read ENCAPSULED_MSG_SIZE
     let mut buffer_8_bytes: [u8; 8] = <[u8; 8]>::default();
-    buffer_8_bytes.copy_from_slice(&decrypted_datas[VERSION_END..ENCAPSULED_MSG_BEGIN]);
+    buffer_8_bytes.copy_from_slice(&decrypted_data[VERSION_END..ENCAPSULED_MSG_BEGIN]);
     let encapsuled_msg_size = u64::from_be_bytes(buffer_8_bytes) as usize;
     let user_msg_end = ENCAPSULED_MSG_BEGIN + encapsuled_msg_size;
 
     // Read type headers
     let (msg_type_headers, type_headers_len) =
-        read_type_headers(&decrypted_datas[ENCAPSULED_MSG_BEGIN..])?;
+        read_type_headers(&decrypted_data[ENCAPSULED_MSG_BEGIN..])?;
 
-    if check_encrypt_state && datas_encrypted != msg_type_headers.must_be_encrypted() {
+    if check_encrypt_state && data_encrypted != msg_type_headers.must_be_encrypted() {
         Err(Error::RecvInvalidMsg(
             IncomingMsgErr::UnexpectedEncryptionState,
         ))
     } else {
-        Ok(DecryptedIncomingDatas {
-            datas: decrypted_datas,
+        Ok(DecryptedIncomingData {
+            data: decrypted_data,
             user_msg_begin: ENCAPSULED_MSG_BEGIN + type_headers_len,
             user_msg_end,
             msg_type_headers,
@@ -157,8 +157,8 @@ mod tests {
 
     #[test]
     fn test_unexpected_user_msg() {
-        let fake_encrypted_incoming_datas = &[0, 0, 0, 0];
-        let result = read(None, fake_encrypted_incoming_datas, true);
+        let fake_encrypted_incoming_data = &[0, 0, 0, 0];
+        let result = read(None, fake_encrypted_incoming_data, true);
         if let Err(Error::RecvInvalidMsg(e)) = result {
             assert_eq!(IncomingMsgErr::UnexpectedMessage, e);
         } else {
@@ -168,10 +168,10 @@ mod tests {
 
     #[test]
     fn test_msg_with_unsupported_version() {
-        let mut fake_incoming_datas = MAGIC_VALUE.to_vec();
-        fake_incoming_datas.append(&mut vec![0, 0, 0, 2]);
+        let mut fake_incoming_data = MAGIC_VALUE.to_vec();
+        fake_incoming_data.append(&mut vec![0, 0, 0, 2]);
 
-        let result = read(None, &fake_incoming_datas, true);
+        let result = read(None, &fake_incoming_data, true);
         if let Err(Error::RecvInvalidMsg(e)) = result {
             assert_eq!(IncomingMsgErr::UnsupportedVersion, e);
         } else {
@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unencrypted_usr_msg() {
+    fn test_unencrypted_user_msg() {
         let mut empty_user_msg = MAGIC_VALUE.to_vec();
         empty_user_msg.append(&mut CURRENT_VERSION.to_vec());
         empty_user_msg.append(&mut vec![0, 0, 0, 0, 0, 0, 0, 2]); // ENCAPSULED_MSG_SIZE
@@ -199,18 +199,18 @@ mod tests {
     fn test_user_msg_with_wrong_magiv_value() -> Result<()> {
         let wrong_magic_value = vec![0, 0, 0, 0];
         let encrypt_algo_with_secret = gen_random_encrypt_algo_with_secret();
-        let mut encrypted_datas = BufWriter::new(Vec::new());
+        let mut encrypted_data = BufWriter::new(Vec::new());
 
         encrypt(
             &mut BufReader::new(&wrong_magic_value[..]),
             &encrypt_algo_with_secret,
-            &mut encrypted_datas,
+            &mut encrypted_data,
         )?;
-        let encrypted_incoming_datas = encrypted_datas.into_inner().expect("buffer flush error");
+        let encrypted_incoming_data = encrypted_data.into_inner().expect("buffer flush error");
 
         let result = read(
             Some(&encrypt_algo_with_secret),
-            &encrypted_incoming_datas[..],
+            &encrypted_incoming_data[..],
             true,
         );
         if let Err(Error::RecvInvalidMsg(e)) = result {
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_read() -> Result<()> {
-        // Crate fake keys
+        // Create fake keys
         let fake_ephem_pk = &[0u8; 32][..];
         let fake_sig_pk = [0u8; 32].to_vec();
         let _fake_signature_opt = Some(&[0u8; 32][..]);
@@ -239,19 +239,19 @@ mod tests {
         // CONNECT MSG
         /////////////////////
 
-        let mut incoming_datas = Vec::with_capacity(100);
-        incoming_datas.append(&mut MAGIC_VALUE.to_vec());
-        incoming_datas.append(&mut CURRENT_VERSION.to_vec());
-        incoming_datas.append(&mut 74u64.to_be_bytes().to_vec()); // Encapsuled message length
-        incoming_datas.append(&mut vec![0, 1]); // CONNECT type
-        incoming_datas.append(&mut fake_ephem_pk.to_vec()); // EPK
-        incoming_datas.append(&mut SIG_ALGO_ED25519.to_vec()); // SIG_ALGO
-        incoming_datas.append(&mut fake_sig_pk.clone()); // SIG_PK
-        incoming_datas.append(&mut vec![5, 4, 4, 5]); // User custom datas
-        incoming_datas.append(&mut [0u8; 32].to_vec()); // fake sig
+        let mut incoming_data = Vec::with_capacity(100);
+        incoming_data.append(&mut MAGIC_VALUE.to_vec());
+        incoming_data.append(&mut CURRENT_VERSION.to_vec());
+        incoming_data.append(&mut 74u64.to_be_bytes().to_vec()); // Encapsuled message length
+        incoming_data.append(&mut vec![0, 1]); // CONNECT type
+        incoming_data.append(&mut fake_ephem_pk.to_vec()); // EPK
+        incoming_data.append(&mut SIG_ALGO_ED25519.to_vec()); // SIG_ALGO
+        incoming_data.append(&mut fake_sig_pk.clone()); // SIG_PK
+        incoming_data.append(&mut vec![5, 4, 4, 5]); // User custom data
+        incoming_data.append(&mut [0u8; 32].to_vec()); // fake sig
         assert_eq!(
-            DecryptedIncomingDatas {
-                datas: incoming_datas.clone(),
+            DecryptedIncomingData {
+                data: incoming_data.clone(),
                 user_msg_begin: 86,
                 user_msg_end: 90,
                 msg_type_headers: MsgTypeHeaders::Connect {
@@ -260,31 +260,31 @@ mod tests {
                     sig_pubkey: fake_sig_pk,
                 }
             },
-            read(Some(&encrypt_algo_with_secret), &incoming_datas[..], true)?,
+            read(Some(&encrypt_algo_with_secret), &incoming_data[..], true)?,
         );
 
         /////////////////////
         // ACK MSG
         /////////////////////
 
-        // Read incoming ack message without custom datas
-        let mut incoming_datas = Vec::with_capacity(100);
-        incoming_datas.append(&mut MAGIC_VALUE.to_vec());
-        incoming_datas.append(&mut CURRENT_VERSION.to_vec());
-        incoming_datas.append(&mut 34u64.to_be_bytes().to_vec()); // Encapsuled message length
-        incoming_datas.append(&mut vec![0, 2]); // ACK type
-        incoming_datas.append(&mut fake_challenge.to_vec()); // ACK challenge
-        incoming_datas.append(&mut [0u8; 32].to_vec()); // fake sig
+        // Read incoming ack message without custom data
+        let mut incoming_data = Vec::with_capacity(100);
+        incoming_data.append(&mut MAGIC_VALUE.to_vec());
+        incoming_data.append(&mut CURRENT_VERSION.to_vec());
+        incoming_data.append(&mut 34u64.to_be_bytes().to_vec()); // Encapsuled message length
+        incoming_data.append(&mut vec![0, 2]); // ACK type
+        incoming_data.append(&mut fake_challenge.to_vec()); // ACK challenge
+        incoming_data.append(&mut [0u8; 32].to_vec()); // fake sig
         assert_eq!(
-            DecryptedIncomingDatas {
-                datas: incoming_datas.clone(),
+            DecryptedIncomingData {
+                data: incoming_data.clone(),
                 user_msg_begin: 50,
                 user_msg_end: 50,
                 msg_type_headers: MsgTypeHeaders::Ack {
                     challenge: fake_challenge,
                 }
             },
-            read(Some(&encrypt_algo_with_secret), &incoming_datas[..], true)?,
+            read(Some(&encrypt_algo_with_secret), &incoming_data[..], true)?,
         );
 
         Ok(())
