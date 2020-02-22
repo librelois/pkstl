@@ -28,7 +28,7 @@ mod tests {
     impl AsOptRef for Option<Vec<u8>> {
         fn as_opt_ref(&self) -> Option<&[u8]> {
             match self {
-                Some(ref datas) => Some(&datas[..]),
+                Some(ref data) => Some(&data[..]),
                 None => None,
             }
         }
@@ -66,21 +66,21 @@ mod tests {
     fn send_connect_msg(
         sender_msl: &mut SecureLayer,
         receiver_msl: &mut SecureLayer,
-        custom_datas: Option<Vec<u8>>,
+        custom_data: Option<Vec<u8>>,
     ) -> Result<Vec<u8>> {
-        // Write connect message and it's sig in channel
+        // Write connect message and its sig in channel
         let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-        sender_msl.write_connect_msg_bin(custom_datas.as_opt_ref(), &mut channel)?;
+        sender_msl.write_connect_msg_bin(custom_data.as_opt_ref(), &mut channel)?;
 
         // Receiver read connect message from channel
         let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
         let msg_received = receiver_msl.read_bin(&channel[..])?;
         if let IncomingBinaryMessage::Connect {
-            custom_datas: custom_datas_received,
+            custom_data: custom_data_received,
             peer_sig_public_key,
-        } = msg_received.get(0).expect("Must be receive a message")
+        } = msg_received.get(0).expect("Must receive a message")
         {
-            assert_eq!(&custom_datas, custom_datas_received);
+            assert_eq!(&custom_data, custom_data_received);
             Ok(peer_sig_public_key.to_owned())
         } else {
             print!("Unexpected incoming message={:?}", msg_received);
@@ -91,20 +91,20 @@ mod tests {
     fn send_ack_msg(
         sender_msl: &mut SecureLayer,
         receiver_msl: &mut SecureLayer,
-        custom_datas: Option<Vec<u8>>,
+        custom_data: Option<Vec<u8>>,
     ) -> Result<()> {
-        // Write ack message and it's sig in channel
+        // Write ack message and its sig in channel
         let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-        sender_msl.write_ack_msg_bin(custom_datas.as_opt_ref(), &mut channel)?;
+        sender_msl.write_ack_msg_bin(custom_data.as_opt_ref(), &mut channel)?;
 
         // Receiver read ack message from channel
         let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
         let msg_received = receiver_msl.read_bin(&channel[..])?;
         if let IncomingBinaryMessage::Ack {
-            custom_datas: custom_datas_received,
-        } = msg_received.get(0).expect("Must be receive a message")
+            custom_data: custom_data_received,
+        } = msg_received.get(0).expect("Must receive a message")
         {
-            assert_eq!(&custom_datas, custom_datas_received);
+            assert_eq!(&custom_data, custom_data_received);
             Ok(())
         } else {
             print!("Unexpected incoming message={:?}", msg_received);
@@ -115,20 +115,20 @@ mod tests {
     fn send_user_msg(
         sender_msl: &mut SecureLayer,
         receiver_msl: &mut SecureLayer,
-        datas: Vec<u8>,
+        data: Vec<u8>,
     ) -> Result<()> {
-        // Write user message and it's sig in channel
+        // Write user message and its sig in channel
         let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-        sender_msl.write_bin(&datas[..], &mut channel)?;
+        sender_msl.write_bin(&data[..], &mut channel)?;
 
         // Receiver read user message from channel
         let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
         let msg_received = receiver_msl.read_bin(&channel[..])?;
         if let IncomingBinaryMessage::Message {
-            datas: datas_received,
-        } = msg_received.get(0).expect("Must be receive a message")
+            data: data_received,
+        } = msg_received.get(0).expect("Must receive a message")
         {
-            assert_eq!(&Some(datas), datas_received);
+            assert_eq!(&Some(data), data_received);
             Ok(())
         } else {
             print!("Unexpected incoming message={:?}", msg_received);
@@ -160,10 +160,10 @@ mod tests {
         // CLIENT ACK MSG
         //////////////////////////
 
-        // Client write ack message and it's sig in channel
+        // Client write ack message and its sig in channel
         let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-        let client_ack_custom_datas = Some(vec![7, 1, 1, 7]);
-        client_msl.write_ack_msg_bin(client_ack_custom_datas.as_opt_ref(), &mut channel)?;
+        let client_ack_custom_data = Some(vec![7, 1, 1, 7]);
+        client_msl.write_ack_msg_bin(client_ack_custom_data.as_opt_ref(), &mut channel)?;
 
         // Server read ack message from channel
         let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
@@ -179,20 +179,20 @@ mod tests {
         // CLIENT CONNECT MSG
         //////////////////////////
 
-        // Client write connect message and it's sig in channel
+        // Client write connect message and its sig in channel
         let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-        let client_connect_custom_datas = Some(vec![5, 1, 1, 5]);
-        client_msl.write_connect_msg_bin(client_connect_custom_datas.as_opt_ref(), &mut channel)?;
+        let client_connect_custom_data = Some(vec![5, 1, 1, 5]);
+        client_msl.write_connect_msg_bin(client_connect_custom_data.as_opt_ref(), &mut channel)?;
 
         // Server read connect message from channel
         let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
         let msgs_received = server_msl.read_bin(&channel[..])?;
         if let IncomingBinaryMessage::Connect {
-            custom_datas: custom_datas_received,
+            custom_data: custom_data_received,
             ..
-        } = msgs_received.get(0).expect("Must be receive a message")
+        } = msgs_received.get(0).expect("Must receive a message")
         {
-            assert_eq!(&client_connect_custom_datas, custom_datas_received);
+            assert_eq!(&client_connect_custom_data, custom_data_received);
         } else {
             print!("Unexpected incoming messages={:?}", msgs_received);
             panic!();
@@ -200,10 +200,10 @@ mod tests {
 
         // Server must also receive the ack message that had been set aside
         if let IncomingBinaryMessage::Ack {
-            custom_datas: custom_datas_received,
-        } = msgs_received.get(1).expect("Must be receive a message")
+            custom_data: custom_data_received,
+        } = msgs_received.get(1).expect("Must receive a message")
         {
-            assert_eq!(&client_ack_custom_datas, custom_datas_received);
+            assert_eq!(&client_ack_custom_data, custom_data_received);
         } else {
             print!("Unexpected incoming messages={:?}", msgs_received);
             panic!();

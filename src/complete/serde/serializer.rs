@@ -23,44 +23,44 @@ use std::io::{BufWriter, Write};
 
 pub(crate) fn write_connect_msg<M, W>(
     sl: &mut SecureLayer,
-    custom_datas: Option<&M>,
+    custom_data: Option<&M>,
     writer: &mut BufWriter<W>,
 ) -> Result<()>
 where
     M: Serialize,
     W: Write,
 {
-    // Serialize and compress custom datas
-    let custom_datas = if let Some(custom_datas) = custom_datas {
-        let bin_msg = serialize(custom_datas, sl.minimal_secure_layer.config.message_format)?;
+    // Serialize and compress custom data
+    let custom_data = if let Some(custom_data) = custom_data {
+        let bin_msg = serialize(custom_data, sl.minimal_secure_layer.config.message_format)?;
         Some(sl.compress(&bin_msg[..])?)
     } else {
         None
     };
 
     // Write binary message on a writer
-    crate::complete::writer::write_connect_msg::<W>(sl, custom_datas, writer)
+    crate::complete::writer::write_connect_msg::<W>(sl, custom_data, writer)
 }
 
 pub(crate) fn write_ack_msg<M, W>(
     sl: &mut SecureLayer,
-    custom_datas: Option<&M>,
+    custom_data: Option<&M>,
     writer: &mut BufWriter<W>,
 ) -> Result<()>
 where
     M: Serialize,
     W: Write,
 {
-    // Serialize and compress custom datas
-    let custom_datas = if let Some(custom_datas) = custom_datas {
-        let bin_msg = serialize(custom_datas, sl.minimal_secure_layer.config.message_format)?;
+    // Serialize and compress custom data
+    let custom_data = if let Some(custom_data) = custom_data {
+        let bin_msg = serialize(custom_data, sl.minimal_secure_layer.config.message_format)?;
         Some(sl.compress(&bin_msg[..])?)
     } else {
         None
     };
 
     // Write binary message on a writer
-    crate::complete::writer::write_ack_msg::<W>(sl, custom_datas, writer)
+    crate::complete::writer::write_ack_msg::<W>(sl, custom_data, writer)
 }
 
 pub(crate) fn write_message<M, W>(

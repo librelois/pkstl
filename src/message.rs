@@ -35,22 +35,22 @@ pub enum Message {
         sig_algo: [u8; SIG_ALGO_LEN],
         /// Signature public key
         sig_pubkey: Vec<u8>,
-        /// Custom datas
-        custom_datas: Option<Vec<u8>>,
+        /// Custom data
+        custom_data: Option<Vec<u8>>,
     },
     /// Ack Message
     Ack {
-        /// Custom datas
-        custom_datas: Option<Vec<u8>>,
+        /// Custom data
+        custom_data: Option<Vec<u8>>,
     },
-    /// Message
+    /// User Message
     Message {
-        /// Custom datas
-        custom_datas: Option<Vec<u8>>,
+        /// Custom data
+        custom_data: Option<Vec<u8>>,
     },
 }
 
-/// Message that referencing datas
+/// Message referencing data
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MessageRef<'a> {
     /// Connect message
@@ -59,18 +59,18 @@ pub enum MessageRef<'a> {
         sig_algo: [u8; SIG_ALGO_LEN],
         /// Signature public key
         sig_pubkey: Vec<u8>,
-        /// Custom datas
-        custom_datas: Option<&'a [u8]>,
+        /// Custom data
+        custom_data: Option<&'a [u8]>,
     },
     /// Ack Message
     Ack {
-        /// Custom datas
-        custom_datas: Option<&'a [u8]>,
+        /// Custom data
+        custom_data: Option<&'a [u8]>,
     },
-    /// Message
+    /// User Message
     Message {
-        /// Custom datas
-        custom_datas: Option<&'a [u8]>,
+        /// Custom data
+        custom_data: Option<&'a [u8]>,
         /// Nonce
         nonce: u64,
     },
@@ -79,12 +79,12 @@ pub enum MessageRef<'a> {
 /// Encapsuled message
 #[derive(Debug, PartialEq)]
 pub struct EncapsuledMessage {
-    pub(crate) datas: Vec<u8>,
+    pub(crate) data: Vec<u8>,
 }
 
 impl AsRef<[u8]> for EncapsuledMessage {
     fn as_ref(&self) -> &[u8] {
-        &self.datas[..]
+        &self.data[..]
     }
 }
 
@@ -120,16 +120,16 @@ struct InnerPreparedMsg<'a> {
 
 impl Message {
     pub(crate) fn from_bytes(msg_bytes: Vec<u8>, msg_type_headers: MsgTypeHeaders) -> Result<Self> {
-        // Read custom datas
-        let custom_datas = if !msg_bytes.is_empty() {
+        // Read custom data
+        let custom_data = if !msg_bytes.is_empty() {
             Some(msg_bytes)
         } else {
             None
         };
 
-        // Build message according to it's type
+        // Build message according to its type
         match msg_type_headers {
-            MsgTypeHeaders::UserMsg { .. } => Ok(Message::Message { custom_datas }),
+            MsgTypeHeaders::UserMsg { .. } => Ok(Message::Message { custom_data }),
             MsgTypeHeaders::Connect {
                 sig_algo,
                 sig_pubkey,
@@ -137,9 +137,9 @@ impl Message {
             } => Ok(Message::Connect {
                 sig_algo,
                 sig_pubkey,
-                custom_datas,
+                custom_data,
             }),
-            MsgTypeHeaders::Ack { .. } => Ok(Message::Ack { custom_datas }),
+            MsgTypeHeaders::Ack { .. } => Ok(Message::Ack { custom_data }),
         }
     }
 }
@@ -155,7 +155,7 @@ impl<'a> MessageRef<'a> {
             Self::Connect {
                 sig_algo,
                 sig_pubkey,
-                custom_datas,
+                custom_data,
             } => {
                 // type message headers
                 let mut type_msg_headers = Vec::with_capacity(CONNECT_MSG_TYPE_HEADERS_SIZE);
@@ -173,11 +173,11 @@ impl<'a> MessageRef<'a> {
                     .map_err(Error::WriteError)?;
 
                 Ok(InnerPreparedMsg {
-                    bin_user_msg: *custom_datas,
+                    bin_user_msg: *custom_data,
                     type_msg_headers,
                 })
             }
-            Self::Ack { custom_datas } => {
+            Self::Ack { custom_data } => {
                 // type message headers
                 let mut type_msg_headers = Vec::with_capacity(ACK_MSG_TYPE_HEADERS_SIZE);
                 type_msg_headers
@@ -187,16 +187,16 @@ impl<'a> MessageRef<'a> {
                 if let Some(peer_epk) = peer_epk {
                     Self::write_challenge(peer_epk, &mut type_msg_headers)?;
                 } else {
-                    panic!("Dev error: try to write ack message before known peer epk.");
+                    panic!("Dev error: try to write ack message before knowing peer epk.");
                 }
 
                 Ok(InnerPreparedMsg {
-                    bin_user_msg: *custom_datas,
+                    bin_user_msg: *custom_data,
                     type_msg_headers,
                 })
             }
             Self::Message {
-                custom_datas,
+                custom_data,
                 nonce,
             } => {
                 // type message headers
@@ -209,7 +209,7 @@ impl<'a> MessageRef<'a> {
                     .map_err(Error::WriteError)?;
 
                 Ok(InnerPreparedMsg {
-                    bin_user_msg: *custom_datas,
+                    bin_user_msg: *custom_data,
                     type_msg_headers,
                 })
             }
@@ -228,7 +228,7 @@ impl<'a> MessageRef<'a> {
 
         let bin_user_msg_len = bin_user_msg.unwrap_or(&[]).len();
 
-        // Create temporary write buffer for datas that will then be signed or hashed
+        // Create temporary write buffer for data that will then be signed or hashed
         let mut bytes_will_signed_or_hashed = BufWriter::new(Vec::with_capacity(
             bin_user_msg_len + HEADERS_AND_FOOTERS_MAX_SIZE,
         ));
@@ -268,7 +268,7 @@ impl<'a> MessageRef<'a> {
 
         // Return the bytes will signed
         Ok(EncapsuledMessage {
-            datas: bytes_will_signed_or_hashed,
+            data: bytes_will_signed_or_hashed,
         })
     }
     #[inline]
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn test_encapsuled_message() {
         let encapsuled_msg = EncapsuledMessage {
-            datas: vec![1, 2, 3],
+            data: vec![1, 2, 3],
         };
 
         assert_eq!(&[1, 2, 3], encapsuled_msg.as_ref());
@@ -299,9 +299,9 @@ mod tests {
     fn test_connect_message_to_bytes() -> Result<()> {
         let fake_epk = &[0u8; 32];
 
-        // Test connect message with custom datas
+        // Test connect message with custom data
         let message = MessageRef::Connect {
-            custom_datas: Some(&[5, 4, 4, 5]),
+            custom_data: Some(&[5, 4, 4, 5]),
             sig_algo: [0u8; SIG_ALGO_LEN],
             sig_pubkey: vec![
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -310,7 +310,7 @@ mod tests {
         };
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 74, // ENCAPSULED_MSG_LEN
@@ -320,15 +320,15 @@ mod tests {
                     0, 0, 0, 0, // SIG_ALGO
                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7,
                     8, 9, 10, 11, 12, 13, 14, 15, // fake SIG_PK (32 bytes)
-                    5, 4, 4, 5 // custom datas
+                    5, 4, 4, 5 // custom data
                 ],
             },
             message.to_bytes(fake_epk, None)?
         );
 
-        // Test connect message without custom datas
+        // Test connect message without custom data
         let message = MessageRef::Connect {
-            custom_datas: None,
+            custom_data: None,
             sig_algo: [0u8; SIG_ALGO_LEN],
             sig_pubkey: vec![
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -338,7 +338,7 @@ mod tests {
 
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 70, // ENCAPSULED_MSG_LEN
@@ -360,13 +360,13 @@ mod tests {
     fn test_ack_message_to_bytes() -> Result<()> {
         let fake_epk = &[0u8; 32];
 
-        // Test ack message with custom datas
+        // Test ack message with custom data
         let message = MessageRef::Ack {
-            custom_datas: Some(&[5, 4, 4, 5]),
+            custom_data: Some(&[5, 4, 4, 5]),
         };
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 38, // ENCAPSULED_MSG_LEN
@@ -374,17 +374,17 @@ mod tests {
                     102, 104, 122, 173, 248, 98, 189, 119, 108, 143, 193, 139, 142, 159, 142, 32,
                     8, 151, 20, 133, 110, 226, 51, 179, 144, 42, 89, 29, 13, 95, 41,
                     37, // CHALLENGE (hash sha256)
-                    5, 4, 4, 5 // custom datas
+                    5, 4, 4, 5 // custom data
                 ],
             },
             message.to_bytes(fake_epk, Some(&fake_epk.to_vec()),)?
         );
 
-        // Test ack message without custom datas
-        let message = MessageRef::Ack { custom_datas: None };
+        // Test ack message without custom data
+        let message = MessageRef::Ack { custom_data: None };
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 34, // ENCAPSULED_MSG_LEN
@@ -401,12 +401,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Dev error: try to write ack message before known peer epk.")]
+    #[should_panic(expected = "Dev error: try to write ack message before knowing peer epk.")]
     fn test_ack_message_to_bytes_before_recv_connect_msg() {
         let fake_epk = &[0u8; 32];
 
-        // Test ack message without custom datas
-        let message = MessageRef::Ack { custom_datas: None };
+        // Test ack message without custom data
+        let message = MessageRef::Ack { custom_data: None };
         let _ = message.to_bytes(fake_epk, None);
     }
 
@@ -417,17 +417,17 @@ mod tests {
         // Test user message
         let empty_user_message = MessageRef::Message {
             nonce: 123456,
-            custom_datas: Some(&[5, 4, 4, 5]),
+            custom_data: Some(&[5, 4, 4, 5]),
         };
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 14, // ENCAPSULED_MSG_LEN
                     0, 0, // USER_MSG_TYPE
                     0, 0, 0, 0, 0, 1, 226, 64, // NONCE
-                    5, 4, 4, 5 // custom datas
+                    5, 4, 4, 5 // custom data
                 ],
             },
             empty_user_message.to_bytes(fake_epk, None)?
@@ -436,11 +436,11 @@ mod tests {
         // Test empty user message
         let empty_user_message = MessageRef::Message {
             nonce: 0,
-            custom_datas: None,
+            custom_data: None,
         };
         assert_eq!(
             EncapsuledMessage {
-                datas: vec![
+                data: vec![
                     226, 194, 226, 210, // MAGIC_VALUE
                     0, 0, 0, 1, // VERSION
                     0, 0, 0, 0, 0, 0, 0, 10, // ENCAPSULED_MSG_LEN
@@ -464,7 +464,7 @@ mod tests {
         // User message
         assert_eq!(
             Message::Message {
-                custom_datas: Some(vec![3, 3, 3, 3]),
+                custom_data: Some(vec![3, 3, 3, 3]),
             },
             Message::from_bytes(msg_bytes.clone(), MsgTypeHeaders::UserMsg { nonce: 123456 })?
         );
@@ -472,7 +472,7 @@ mod tests {
         // Ack message
         assert_eq!(
             Message::Ack {
-                custom_datas: Some(vec![3, 3, 3, 3]),
+                custom_data: Some(vec![3, 3, 3, 3]),
             },
             Message::from_bytes(
                 msg_bytes.clone(),
@@ -487,7 +487,7 @@ mod tests {
             Message::Connect {
                 sig_pubkey: (0..31).collect(),
                 sig_algo: [0u8; SIG_ALGO_LEN],
-                custom_datas: Some(vec![3, 3, 3, 3]),
+                custom_data: Some(vec![3, 3, 3, 3]),
             },
             Message::from_bytes(
                 msg_bytes.clone(),
@@ -499,10 +499,10 @@ mod tests {
             )?
         );
 
-        // Truncate user message content, msut be not panic
+        // Truncate user message content, must not panic
         assert_eq!(
             Message::Message {
-                custom_datas: Some(vec![3, 3])
+                custom_data: Some(vec![3, 3])
             },
             Message::from_bytes(
                 msg_bytes.drain(..2).collect(),
@@ -513,7 +513,7 @@ mod tests {
         // Empty message
         let empty_msg_bytes = vec![];
         assert_eq!(
-            Message::Message { custom_datas: None },
+            Message::Message { custom_data: None },
             Message::from_bytes(empty_msg_bytes, MsgTypeHeaders::UserMsg { nonce: 123456 })?
         );
 

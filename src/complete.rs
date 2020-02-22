@@ -109,52 +109,52 @@ impl SecureLayer {
 
         Ok(secure_layer)
     }
-    /// Read binary incoming datas
-    pub fn read_bin(&mut self, incoming_datas: &[u8]) -> Result<Vec<IncomingBinaryMessage>> {
+    /// Read binary incoming data
+    pub fn read_bin(&mut self, incoming_data: &[u8]) -> Result<Vec<IncomingBinaryMessage>> {
         let mut messages = Vec::new();
 
-        let message_opt = self.minimal_secure_layer.read(incoming_datas)?;
+        let message_opt = self.minimal_secure_layer.read(incoming_data)?;
 
         if let Some(message) = message_opt {
             match message {
                 Message::Connect {
-                    custom_datas,
+                    custom_data,
                     sig_pubkey,
                     ..
                 } => {
                     messages.push(IncomingBinaryMessage::Connect {
-                        custom_datas: if let Some(custom_datas) = custom_datas {
-                            Some(Self::uncompress(&custom_datas)?)
+                        custom_data: if let Some(custom_data) = custom_data {
+                            Some(Self::uncompress(&custom_data)?)
                         } else {
                             None
                         },
                         peer_sig_public_key: sig_pubkey,
                     });
-                    if let Some(Message::Ack { custom_datas }) =
+                    if let Some(Message::Ack { custom_data }) =
                         self.minimal_secure_layer.take_ack_msg_recv_too_early()?
                     {
                         messages.push(IncomingBinaryMessage::Ack {
-                            custom_datas: if let Some(custom_datas) = custom_datas {
-                                Some(Self::uncompress(&custom_datas)?)
+                            custom_data: if let Some(custom_data) = custom_data {
+                                Some(Self::uncompress(&custom_data)?)
                             } else {
                                 None
                             },
                         });
                     }
                 }
-                Message::Ack { custom_datas } => {
+                Message::Ack { custom_data } => {
                     messages.push(IncomingBinaryMessage::Ack {
-                        custom_datas: if let Some(custom_datas) = custom_datas {
-                            Some(Self::uncompress(&custom_datas)?)
+                        custom_data: if let Some(custom_data) = custom_data {
+                            Some(Self::uncompress(&custom_data)?)
                         } else {
                             None
                         },
                     });
                     for msg in self.minimal_secure_layer.drain_tmp_stack_user_msgs()? {
-                        if let Message::Message { custom_datas } = msg {
+                        if let Message::Message { custom_data } = msg {
                             messages.push(IncomingBinaryMessage::Message {
-                                datas: if let Some(custom_datas) = custom_datas {
-                                    Some(Self::uncompress(&custom_datas)?)
+                                data: if let Some(custom_data) = custom_data {
+                                    Some(Self::uncompress(&custom_data)?)
                                 } else {
                                     None
                                 },
@@ -162,10 +162,10 @@ impl SecureLayer {
                         }
                     }
                 }
-                Message::Message { custom_datas } => {
+                Message::Message { custom_data } => {
                     messages.push(IncomingBinaryMessage::Message {
-                        datas: if let Some(custom_datas) = custom_datas {
-                            Some(Self::uncompress(&custom_datas)?)
+                        data: if let Some(custom_data) = custom_data {
+                            Some(Self::uncompress(&custom_data)?)
                         } else {
                             None
                         },
@@ -175,14 +175,14 @@ impl SecureLayer {
         }
         Ok(messages)
     }
-    /// Read incoming datas
+    /// Read incoming data
     #[cfg(feature = "ser")]
     #[inline]
-    pub fn read<M>(&mut self, incoming_datas: &[u8]) -> Result<Vec<IncomingMessage<M>>>
+    pub fn read<M>(&mut self, incoming_data: &[u8]) -> Result<Vec<IncomingMessage<M>>>
     where
         M: Debug + DeserializeOwned,
     {
-        self::serde::deserializer::read::<M>(self, incoming_datas)
+        self::serde::deserializer::read::<M>(self, incoming_data)
     }
     fn uncompress(bin_zip_msg: &[u8]) -> Result<Vec<u8>> {
         let mut deflate_decoder = DeflateDecoder::new(Vec::with_capacity(bin_zip_msg.len() * 5));
@@ -191,69 +191,69 @@ impl SecureLayer {
             .map_err(Error::ZipError)?;
         deflate_decoder.finish().map_err(Error::ZipError)
     }
-    /// Write ack message with optional binary custom datas
+    /// Write ack message with optional binary custom data
     pub fn write_ack_msg_bin<W>(
         &mut self,
-        custom_datas: Option<&[u8]>,
+        custom_data: Option<&[u8]>,
         writer: &mut BufWriter<W>,
     ) -> Result<()>
     where
         W: Write,
     {
-        // Serialize and compress custom datas
-        let custom_datas = if let Some(custom_datas) = custom_datas {
-            Some(self.compress(custom_datas)?)
+        // Serialize and compress custom data
+        let custom_data = if let Some(custom_data) = custom_data {
+            Some(self.compress(custom_data)?)
         } else {
             None
         };
 
-        writer::write_ack_msg::<W>(self, custom_datas, writer)
+        writer::write_ack_msg::<W>(self, custom_data, writer)
     }
-    /// Write ack message with optional custom datas
+    /// Write ack message with optional custom data
     #[cfg(feature = "ser")]
     #[inline]
     pub fn write_ack_msg<M, W>(
         &mut self,
-        custom_datas: Option<&M>,
+        custom_data: Option<&M>,
         writer: &mut BufWriter<W>,
     ) -> Result<()>
     where
         M: Serialize,
         W: Write,
     {
-        self::serde::serializer::write_ack_msg::<M, W>(self, custom_datas, writer)
+        self::serde::serializer::write_ack_msg::<M, W>(self, custom_data, writer)
     }
-    /// Write connect message with optional binary custom datas
+    /// Write connect message with optional binary custom data
     pub fn write_connect_msg_bin<W>(
         &mut self,
-        custom_datas: Option<&[u8]>,
+        custom_data: Option<&[u8]>,
         writer: &mut BufWriter<W>,
     ) -> Result<()>
     where
         W: Write,
     {
-        // Compress custom datas
-        let custom_datas = if let Some(custom_datas) = custom_datas {
-            Some(self.compress(custom_datas)?)
+        // Compress custom data
+        let custom_data = if let Some(custom_data) = custom_data {
+            Some(self.compress(custom_data)?)
         } else {
             None
         };
 
-        writer::write_connect_msg(self, custom_datas, writer)
+        writer::write_connect_msg(self, custom_data, writer)
     }
-    /// Write connect message with optional custom datas
+    /// Write connect message with optional custom data
     #[cfg(feature = "ser")]
     #[inline]
     pub fn write_connect_msg<M, W>(
         &mut self,
-        custom_datas: Option<&M>,
+        custom_data: Option<&M>,
         writer: &mut BufWriter<W>,
     ) -> Result<()>
     where
         M: Serialize,
         W: Write,
     {
-        self::serde::serializer::write_connect_msg::<M, W>(self, custom_datas, writer)
+        self::serde::serializer::write_connect_msg::<M, W>(self, custom_data, writer)
     }
     /*/// Split secure layer in writer and reader
     pub fn split(self) -> Result<(SecureWriter, SecureReader)> {

@@ -14,26 +14,26 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Manage complete Public Key Secure Transport Layer.
-//! Sub-module define incoming messages format.
+//! Sub-module define incoming message format.
 
 /// Incoming binary Message
 #[derive(Debug, PartialEq)]
 pub enum IncomingBinaryMessage {
     /// Connect message
     Connect {
-        /// Your custom datas
-        custom_datas: Option<Vec<u8>>,
+        /// Your custom data
+        custom_data: Option<Vec<u8>>,
         /// Peer public key of signature algorithm
         peer_sig_public_key: Vec<u8>,
     },
     /// Ack message
     Ack {
-        /// Your custom datas
-        custom_datas: Option<Vec<u8>>,
+        /// Your custom data
+        custom_data: Option<Vec<u8>>,
     },
     /// Message
     Message {
-        /// Message datas (This is an option because it's possible to receive an empty message)
-        datas: Option<Vec<u8>>,
+        /// Message data (This is an option because it's possible to receive an empty message)
+        data: Option<Vec<u8>>,
     },
 }

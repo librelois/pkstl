@@ -13,11 +13,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Provide wrappers around cryptographic seeds
+//! Provide wrappers around cryptographic seeds.
 
 use clear_on_drop::clear::Clear;
 
-/// Store a 32 bytes seed.
+/// Store a 32 bytes seed
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Seed32([u8; 32]);
 
@@ -58,7 +58,7 @@ impl Seed32 {
     }
 }
 
-/// Store a 48 bytes seed.
+/// Store a 48 bytes seed
 #[derive(Default)]
 pub struct Seed48(InnerSeed48);
 
@@ -98,7 +98,7 @@ impl Seed48 {
     }
 }
 
-/// Store a 64 bytes seed.
+/// Store a 64 bytes seed
 #[derive(Default)]
 pub struct Seed64(InnerSeed64);
 
@@ -135,7 +135,7 @@ pub mod tests {
         {
             Seed48::new(random_bytes.expose())
         } else {
-            panic!("System error: fail to generate random seed !")
+            panic!("System error: fail to generate random seed!")
         }
     }
 

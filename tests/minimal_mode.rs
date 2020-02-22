@@ -26,7 +26,7 @@ trait AsOptRef {
 impl AsOptRef for Option<Vec<u8>> {
     fn as_opt_ref(&self) -> Option<&[u8]> {
         match self {
-            Some(ref datas) => Some(&datas[..]),
+            Some(ref data) => Some(&data[..]),
             None => None,
         }
     }
@@ -59,16 +59,16 @@ fn send_connect_msg_inner(
     sender_msl: &mut MinimalSecureLayer,
     sender_sig_kp: &Ed25519KeyPair,
     receiver_msl: &mut MinimalSecureLayer,
-    custom_datas: Option<Vec<u8>>,
+    custom_data: Option<Vec<u8>>,
 ) -> Result<Option<Message>> {
     // Create and sign connect message
     let connect_msg = sender_msl.create_connect_message(
         sender_sig_kp.public_key().as_ref(),
-        custom_datas.as_opt_ref(),
+        custom_data.as_opt_ref(),
     )?;
     let sig = sender_sig_kp.sign(&connect_msg);
 
-    // Write connect message and it's sig in channel
+    // Write connect message and its sig in channel
     let mut channel = BufWriter::new(Vec::with_capacity(1_000));
     channel
         .write(&connect_msg)
@@ -87,20 +87,20 @@ fn send_connect_msg(
     sender_msl: &mut MinimalSecureLayer,
     sender_sig_kp: &Ed25519KeyPair,
     receiver_msl: &mut MinimalSecureLayer,
-    custom_datas: Option<Vec<u8>>,
+    custom_data: Option<Vec<u8>>,
 ) -> Result<()> {
     let connect_msg_received = send_connect_msg_inner(
         sender_msl,
         sender_sig_kp,
         receiver_msl,
-        custom_datas.clone(),
+        custom_data.clone(),
     )?
-    .expect("Must be receive a message");
+    .expect("Must receive a message");
     assert_eq!(
         Message::Connect {
             sig_algo: SIG_ALGO_ED25519_ARRAY,
             sig_pubkey: sender_sig_kp.public_key().as_ref().to_vec(),
-            custom_datas,
+            custom_data,
         },
         connect_msg_received,
     );
@@ -112,16 +112,16 @@ fn send_ack_msg(
     sender_msl: &mut MinimalSecureLayer,
     sender_sig_kp: &Ed25519KeyPair,
     receiver_msl: &mut MinimalSecureLayer,
-    custom_datas: Option<Vec<u8>>,
+    custom_data: Option<Vec<u8>>,
 ) -> Result<()> {
     let msg_received = send_ack_msg_inner(
         sender_msl,
         sender_sig_kp,
         receiver_msl,
-        custom_datas.as_opt_ref(),
+        custom_data.as_opt_ref(),
     )?
-    .expect("Must be receive a message");
-    assert_eq!(Message::Ack { custom_datas }, msg_received,);
+    .expect("Must receive a message");
+    assert_eq!(Message::Ack { custom_data }, msg_received,);
     Ok(())
 }
 
@@ -129,13 +129,13 @@ fn send_ack_msg_inner<'a>(
     sender_msl: &mut MinimalSecureLayer,
     sender_sig_kp: &Ed25519KeyPair,
     receiver_msl: &'a mut MinimalSecureLayer,
-    custom_datas: Option<&[u8]>,
+    custom_data: Option<&[u8]>,
 ) -> Result<Option<Message>> {
     // Create and sign server ack message
-    let ack_msg = sender_msl.create_ack_message(custom_datas)?;
+    let ack_msg = sender_msl.create_ack_message(custom_data)?;
     let sig = sender_sig_kp.sign(&ack_msg);
 
-    // Write server ack message and it's sig in channel
+    // Write server ack message and its sig in channel
     let mut channel = BufWriter::new(Vec::with_capacity(1_000));
     channel
         .write(&ack_msg)
@@ -153,13 +153,13 @@ fn send_ack_msg_inner<'a>(
 fn send_user_msg(
     sender_msl: &mut MinimalSecureLayer,
     receiver_msl: &mut MinimalSecureLayer,
-    datas: Vec<u8>,
+    data: Vec<u8>,
 ) -> Result<()> {
-    let msg_received = send_user_msg_inner(sender_msl, receiver_msl, datas.clone())?
-        .expect("Must be receive a message");
+    let msg_received = send_user_msg_inner(sender_msl, receiver_msl, data.clone())?
+        .expect("Must receive a message");
     assert_eq!(
         Message::Message {
-            custom_datas: Some(datas),
+            custom_data: Some(data),
         },
         msg_received,
     );
@@ -169,13 +169,13 @@ fn send_user_msg(
 fn send_user_msg_inner(
     sender_msl: &mut MinimalSecureLayer,
     receiver_msl: &mut MinimalSecureLayer,
-    datas: Vec<u8>,
+    data: Vec<u8>,
 ) -> Result<Option<Message>> {
-    // Client write one message in channel
+    // Client write user message in channel
     let mut channel = BufWriter::new(Vec::with_capacity(1_000));
-    sender_msl.write_message(&datas, &mut channel)?;
+    sender_msl.write_message(&data, &mut channel)?;
 
-    // Server read client message from channel
+    // Server read client user message from channel
     let channel = channel.into_inner().map_err(|_| Error::BufferFlushError)?;
     receiver_msl.read(&channel[..])
 }
@@ -256,7 +256,7 @@ fn server_recv_ack_early() -> Result<()> {
 
     assert_eq!(
         Some(Message::Ack {
-            custom_datas: Some(vec![7, 1, 1, 7]),
+            custom_data: Some(vec![7, 1, 1, 7]),
         }),
         server_msl.take_ack_msg_recv_too_early()?
     );
@@ -269,7 +269,7 @@ fn server_recv_ack_early() -> Result<()> {
 
     assert_eq!(
         vec![Message::Message {
-            custom_datas: Some(vec![5, 2, 2, 5]),
+            custom_data: Some(vec![5, 2, 2, 5]),
         }],
         server_msl.drain_tmp_stack_user_msgs()?
     );

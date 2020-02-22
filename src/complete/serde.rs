@@ -28,20 +28,20 @@ const HEADER_FORMAT_LEN: usize = 4;
 pub enum IncomingMessage<M: Debug + DeserializeOwned> {
     /// Connect message
     Connect {
-        /// Your custom datas
-        custom_datas: Option<M>,
+        /// Your custom data
+        custom_data: Option<M>,
         /// Peer public key of signature algorithm
         peer_sig_public_key: Vec<u8>,
     },
     /// Ack message
     Ack {
-        /// Your custom datas
-        custom_datas: Option<M>,
+        /// Your custom data
+        custom_data: Option<M>,
     },
     /// Message
     Message {
-        /// Message datas (This is an option because it's possible to receive an empty message)
-        datas: Option<M>,
+        /// Message data (This is an option because it's possible to receive an empty message)
+        data: Option<M>,
     },
 }
 
