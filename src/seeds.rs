@@ -15,10 +15,11 @@
 
 //! Provide wrappers around cryptographic seeds.
 
-use clear_on_drop::clear::Clear;
+use zeroize::Zeroize;
 
 /// Store a 32 bytes seed
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Zeroize)]
+#[zeroize(drop)]
 pub struct Seed32([u8; 32]);
 
 impl AsRef<[u8]> for Seed32 {
@@ -30,13 +31,6 @@ impl AsRef<[u8]> for Seed32 {
 impl AsMut<[u8]> for Seed32 {
     fn as_mut(&mut self) -> &mut [u8] {
         &mut self.0
-    }
-}
-
-impl Drop for Seed32 {
-    #[inline]
-    fn drop(&mut self) {
-        <[u8; 32] as Clear>::clear(&mut self.0);
     }
 }
 
@@ -59,9 +53,11 @@ impl Seed32 {
 }
 
 /// Store a 48 bytes seed
-#[derive(Default)]
+#[derive(Default, Zeroize)]
+#[zeroize(drop)]
 pub struct Seed48(InnerSeed48);
 
+#[derive(Zeroize)]
 struct InnerSeed48([u8; 48]);
 
 impl Default for InnerSeed48 {
@@ -82,13 +78,6 @@ impl AsMut<[u8]> for Seed48 {
     }
 }
 
-impl Drop for Seed48 {
-    #[inline]
-    fn drop(&mut self) {
-        <InnerSeed48 as Clear>::clear(&mut self.0);
-    }
-}
-
 #[cfg(test)]
 impl Seed48 {
     #[inline]
@@ -99,9 +88,11 @@ impl Seed48 {
 }
 
 /// Store a 64 bytes seed
-#[derive(Default)]
+#[derive(Default, Zeroize)]
+#[zeroize(drop)]
 pub struct Seed64(InnerSeed64);
 
+#[derive(Zeroize)]
 struct InnerSeed64([u8; 64]);
 
 impl Default for InnerSeed64 {
@@ -113,13 +104,6 @@ impl Default for InnerSeed64 {
 impl AsMut<[u8]> for Seed64 {
     fn as_mut(&mut self) -> &mut [u8] {
         &mut (self.0).0
-    }
-}
-
-impl Drop for Seed64 {
-    #[inline]
-    fn drop(&mut self) {
-        <InnerSeed64 as Clear>::clear(&mut self.0);
     }
 }
 

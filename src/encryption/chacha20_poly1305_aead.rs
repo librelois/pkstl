@@ -17,26 +17,18 @@
 
 use crate::seeds::Seed48;
 use crate::{Error, Result};
-use clear_on_drop::clear::Clear;
 use std::io::{BufWriter, Read, Write};
+use zeroize::Zeroize;
 
 const CHACHA20_TAG_SIZE: usize = 16;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Zeroize)]
+#[zeroize(drop)]
 /// Secret key used for encryption algo
 pub struct SecretKey {
     key: [u8; 32],
     nonce: [u8; 12],
     aad: [u8; 4],
-}
-
-impl Drop for SecretKey {
-    #[inline]
-    fn drop(&mut self) {
-        <[u8; 32] as Clear>::clear(&mut self.key);
-        <[u8; 12] as Clear>::clear(&mut self.nonce);
-        <[u8; 4] as Clear>::clear(&mut self.aad);
-    }
 }
 
 impl SecretKey {
