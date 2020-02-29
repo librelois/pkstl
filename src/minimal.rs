@@ -561,7 +561,7 @@ mod tests {
     fn test_connect_msg_with_wrong_sig() -> Result<()> {
         // Crate fake keys
         let fake_ephem_pk = &[0u8; 32][..];
-        let fake_sig_pk = [0u8; 32].to_vec();
+        let mut fake_sig_pk = [0u8; 32].to_vec();
         let _fake_signature_opt = Some(&[0u8; 32][..]);
 
         // Create connect msg bytes
@@ -572,7 +572,7 @@ mod tests {
         incoming_data.append(&mut vec![0, 1]); // CONNECT type
         incoming_data.append(&mut fake_ephem_pk.to_vec()); // EPK
         incoming_data.append(&mut SIG_ALGO_ED25519.to_vec()); // SIG_ALGO
-        incoming_data.append(&mut fake_sig_pk.clone()); // SIG_PK
+        incoming_data.append(&mut fake_sig_pk); // SIG_PK
         incoming_data.append(&mut vec![5, 4, 4, 5]); // User custom data
         incoming_data.append(&mut [0u8; 32].to_vec()); // fake sig
 
@@ -701,11 +701,11 @@ mod tests {
 
         // Create and read different user messages
         let mut incoming_data = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data)?;
         let _ = msl1.read(incoming_data.buffer())?;
 
         incoming_data = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data)?;
         let _ = msl1.read(incoming_data.buffer())?;
 
         // Reread same user message
@@ -752,13 +752,13 @@ mod tests {
 
         // Create and read unordered user messages
         let mut incoming_data0 = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data0)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data0)?;
         let mut incoming_data1 = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data1)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data1)?;
         let mut incoming_data2 = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data2)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data2)?;
         let mut incoming_data3 = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[1, 2, 3, 4], &mut incoming_data3)?;
+        msl1.write_message(&[1, 2, 3, 4], &mut incoming_data3)?;
 
         let _ = msl1.read(incoming_data0.buffer())?;
         let _ = msl1.read(incoming_data2.buffer())?;
@@ -803,18 +803,18 @@ mod tests {
 
         // Create a first msg without reading it
         let mut incoming_data = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[], &mut incoming_data)?;
+        msl1.write_message(&[], &mut incoming_data)?;
 
         // Read MAX_ORPHAN_NONCES messages
         let _i: usize;
         for _i in 0..MAX_ORPHAN_NONCES {
             incoming_data = BufWriter::new(Vec::new());
-            let _ = msl1.write_message(&[], &mut incoming_data)?;
+            msl1.write_message(&[], &mut incoming_data)?;
             let _ = msl1.read(incoming_data.buffer())?;
         }
 
         incoming_data = BufWriter::new(Vec::new());
-        let _ = msl1.write_message(&[], &mut incoming_data)?;
+        msl1.write_message(&[], &mut incoming_data)?;
         let result = msl1.read(incoming_data.buffer());
         if let Err(Error::TooManyUnorderedMsgs) = result {
             Ok(())

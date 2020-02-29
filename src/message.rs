@@ -416,7 +416,7 @@ mod tests {
 
         // Test user message
         let empty_user_message = MessageRef::Message {
-            nonce: 123456,
+            nonce: 123_456,
             custom_data: Some(&[5, 4, 4, 5]),
         };
         assert_eq!(
@@ -466,7 +466,7 @@ mod tests {
             Message::Message {
                 custom_data: Some(vec![3, 3, 3, 3]),
             },
-            Message::from_bytes(msg_bytes.clone(), MsgTypeHeaders::UserMsg { nonce: 123456 })?
+            Message::from_bytes(msg_bytes.clone(), MsgTypeHeaders::UserMsg { nonce: 123_456 })?
         );
 
         // Ack message
@@ -506,7 +506,7 @@ mod tests {
             },
             Message::from_bytes(
                 msg_bytes.drain(..2).collect(),
-                MsgTypeHeaders::UserMsg { nonce: 123456 }
+                MsgTypeHeaders::UserMsg { nonce: 123_456 }
             )?,
         );
 
@@ -514,7 +514,7 @@ mod tests {
         let empty_msg_bytes = vec![];
         assert_eq!(
             Message::Message { custom_data: None },
-            Message::from_bytes(empty_msg_bytes, MsgTypeHeaders::UserMsg { nonce: 123456 })?
+            Message::from_bytes(empty_msg_bytes, MsgTypeHeaders::UserMsg { nonce: 123_456 })?
         );
 
         Ok(())
