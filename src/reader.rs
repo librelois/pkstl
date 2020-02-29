@@ -297,7 +297,7 @@ mod tests {
             0, 0, 0, 0, 0, 1, 226, 64, // NONCE
         ];
 
-        let expected = (MsgTypeHeaders::UserMsg { nonce: 123456 }, 10);
+        let expected = (MsgTypeHeaders::UserMsg { nonce: 123_456 }, 10);
 
         assert_eq!(expected, read_type_headers(&type_headers[..])?);
 

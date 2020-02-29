@@ -148,7 +148,7 @@ mod tests {
         // CLIENT INFOS
         //////////////////////////
 
-        let mut client_msl = client_infos(Some(server_sig_pk.clone()))?;
+        let mut client_msl = client_infos(Some(server_sig_pk))?;
 
         //////////////////////////
         // SERVER CONNECT MSG
